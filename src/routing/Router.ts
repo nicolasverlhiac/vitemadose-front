@@ -145,7 +145,6 @@ class Routing {
                 document.title = title;
 
                 this._viewChangeCallbacks.forEach(callback => callback(slottedViewTemplateFactory, path));
-
                 Analytics.INSTANCE.navigationSurNouvellePage(pageName);
             })
         });
