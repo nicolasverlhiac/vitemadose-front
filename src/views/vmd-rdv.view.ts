@@ -1,10 +1,11 @@
-import {css, customElement, html, LitElement, property, unsafeCSS} from 'lit-element';
+import {css, customElement, html, LitElement, internalProperty, property, unsafeCSS} from 'lit-element';
 import {repeat} from "lit-html/directives/repeat";
 import {styleMap} from "lit-html/directives/style-map";
 import {Router} from "../routing/Router";
 import rdvViewCss from "./vmd-rdv.view.scss";
 import distanceEntreDeuxPoints from "../distance"
 import {
+    SearchRequest,
     CodeDepartement,
     CodeTriCentre,
     Commune,
@@ -43,7 +44,8 @@ export abstract class AbstractVmdRdvView extends LitElement {
         `
     ];
 
-    @property({type: String}) codeDepartementSelectionne: CodeDepartement | undefined = undefined;
+    @internalProperty() protected currentSearch: SearchRequest | void = undefined
+
 
     @property({type: Array, attribute: false}) communesAutocomplete: Set<string>|undefined = undefined;
     @property({type: Array, attribute: false}) recuperationCommunesEnCours: boolean = false;
@@ -56,7 +58,7 @@ export abstract class AbstractVmdRdvView extends LitElement {
     @property({type: Boolean, attribute: false}) miseAJourDisponible: boolean = false;
 
     protected derniereCommuneSelectionnee: Commune|undefined = undefined;
-    protected lieuBackgroundRefreshIntervalId: number|undefined = undefined;
+    protected lieuBackgroundRefreshIntervalId: ReturnType<typeof setTimeout>|undefined = undefined;
 
 
     get communeSelectionnee(): Commune|undefined {
@@ -146,16 +148,18 @@ export abstract class AbstractVmdRdvView extends LitElement {
             Router.navigateToRendezVousAvecDepartement(departement.code_departement, libelleUrlPathDuDepartement(departement));
             return;
         }
-
-        if(departement.code_departement !== this.codeDepartementSelectionne) {
-            this.codeDepartementSelectionne = departement.code_departement;
-
-            if(triggerNavigation) {
-                this.refreshPageWhenValidParams();
-            }
-        }
-
         return Promise.resolve();
+    }
+
+    async onSearchSelected (event: CustomEvent<SearchRequest>) {
+      const search = event.detail
+      this.goToNewSearch(search)
+    }
+
+    private goToNewSearch (search: SearchRequest) {
+      if (SearchRequest.isByDepartement(search)) {
+        Router.navigateToRendezVousAvecDepartement(search.departement.code_departement, libelleUrlPathDuDepartement(search.departement));
+      }
     }
 
     render() {
@@ -170,17 +174,12 @@ export abstract class AbstractVmdRdvView extends LitElement {
                       Localisation :
                     </label>
                     <div class="col">
-                        <vmd-commune-or-departement-selector class="mb-3"
-                              @autocomplete-triggered="${(event: CustomEvent<AutocompleteTriggered>) => this.communeAutocompleteTriggered(event.detail.value)}"
-                              @on-commune-selected="${(event: CustomEvent<CommuneSelected>) => this.communeSelected(event.detail.commune, true)}"
-                              @on-departement-selected="${(event: CustomEvent<DepartementSelected>) => this.departementSelected(event.detail.departement, true)}"
-                              codeCommuneSelectionne="${this.getCodeCommuneSelectionne()}"
-                              .departementsDisponibles="${this.departementsDisponibles}"
-                              .autocompleteTriggers="${this.communesAutocomplete}"
-                              .communesDisponibles="${this.communesDisponibles}"
-                              .recuperationCommunesEnCours="${this.recuperationCommunesEnCours}"
-                        >
-                        </vmd-commune-or-departement-selector>
+                        <vmd-search
+                          .value="${this.currentSearch}"
+                          @on-search="${this.onSearchSelected.bind(this)}"
+                          @on-commune-selected="${(event: CustomEvent<CommuneSelected>) => this.communeSelected(event.detail.commune, true)}"
+                          @on-departement-selected="${(event: CustomEvent<DepartementSelected>) => this.departementSelected(event.detail.departement, true)}"
+                        />
                     </div>
                 </div>
                 ${this.renderAdditionnalSearchCriteria()}
@@ -194,7 +193,7 @@ export abstract class AbstractVmdRdvView extends LitElement {
                 </div>
               </div>
             `:html`
-                <h3 class="fw-normal text-center h4" style="${styleMap({display: (this.codeDepartementSelectionne) ? 'block' : 'none'})}">
+                <h3 class="fw-normal text-center h4" style="${styleMap({display: (this.lieuxParDepartementAffiches) ? 'block' : 'none'})}">
                   ${this.totalCreneaux.toLocaleString()} créneau${Strings.plural(this.totalCreneaux, "x")} de vaccination trouvé${Strings.plural(this.totalCreneaux)}
                   ${this.libelleLieuSelectionne()}
                   <br/>
@@ -292,12 +291,13 @@ export abstract class AbstractVmdRdvView extends LitElement {
     abstract codeDepartementAdditionnels(codeDepartementSelectionne: CodeDepartement): CodeDepartement[]
 
     async refreshLieux() {
-        if(this.codeDepartementSelectionne && !this.preventRafraichissementLieux()) {
+        if(this.currentSearch && !this.preventRafraichissementLieux()) {
+            const departement = (this.currentSearch as SearchRequest.ByDepartement).departement
             try {
                 this.searchInProgress = true;
                 const [lieuxDepartement, ...lieuxDepartementsLimitrophes] = await Promise.all([
-                    State.current.lieuxPour(this.codeDepartementSelectionne),
-                    ...this.codeDepartementAdditionnels(this.codeDepartementSelectionne).map(dept => State.current.lieuxPour(dept))
+                    State.current.lieuxPour(departement.code_departement),
+                    ...this.codeDepartementAdditionnels(departement.code_departement).map(dept => State.current.lieuxPour(dept))
                 ]);
 
                 const lieuxParDepartement = [lieuxDepartement].concat(lieuxDepartementsLimitrophes).reduce((mergedLieuxParDepartement, lieuxParDepartement) => ({
@@ -315,7 +315,7 @@ export abstract class AbstractVmdRdvView extends LitElement {
                 this.lieuxParDepartementAffiches = this.afficherLieuxParDepartement(lieuxParDepartement);
 
                 Analytics.INSTANCE.rechercheLieuEffectuee(
-                    this.codeDepartementSelectionne,
+                    departement.code_departement,
                     this.communeSelectionnee,
                     this.lieuxParDepartementAffiches);
             } finally {
@@ -555,16 +555,17 @@ export class VmdRdvParCommuneView extends AbstractVmdRdvView {
 
 @customElement('vmd-rdv-par-departement')
 export class VmdRdvParDepartementView extends AbstractVmdRdvView {
+    @property({type: String})
+    set codeDepartementSelectionne (code: CodeDepartement) {
+      this.transformCodeToSearch(code)
+    }
+    @internalProperty() protected currentSearch: SearchRequest.ByDepartement | void = undefined
 
-    async onceStartupPromiseResolved() {
-        if(this.codeDepartementSelectionne) {
-            const departementSelectionne = this.departementsDisponibles.find(d => d.code_departement === this.codeDepartementSelectionne);
-            if (departementSelectionne) {
-                const component = (this.shadowRoot!.querySelector("vmd-commune-or-departement-selector") as VmdCommuneOrDepartmentSelectorComponent)
-                component.fillDepartement(departementSelectionne);
-
-                await this.departementSelected(departementSelectionne, false);
-            }
+    async transformCodeToSearch(code: CodeDepartement) {
+        const departements = await State.current.departementsDisponibles()
+        const departementSelectionne = departements.find(d => d.code_departement === code);
+        if (departementSelectionne) {
+          this.setCurrentSearch(SearchRequest.ByDepartement(departementSelectionne))
         }
     }
 
@@ -573,12 +574,20 @@ export class VmdRdvParDepartementView extends AbstractVmdRdvView {
     codeDepartementAdditionnels () {
       return []
     }
+    async setCurrentSearch (search: SearchRequest.ByDepartement) {
+      this.currentSearch = search
+      this.refreshLieux()
+    }
 
     libelleLieuSelectionne(): TemplateResult {
+        let nom = '???'
+        if (this.currentSearch) {
+          const departement = this.currentSearch.departement
+          nom = `${departement.nom_departement} (${departement.code_departement})`
+        }
         return html`
           pour
-          <span class="fw-bold">${this.departementSelectionne?`${this.departementSelectionne.nom_departement} (${this.departementSelectionne.code_departement})`:"???"}
-          </span>
+          <span class="fw-bold">${nom}</span>
         `
     }
 
