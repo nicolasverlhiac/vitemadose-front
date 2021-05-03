@@ -6,6 +6,7 @@ import {
     libelleUrlPathDeCommune,
     libelleUrlPathDuDepartement,
     PLATEFORMES,
+    SearchRequest,
     State,
     StatsLieu,
 } from "../state/State";
@@ -30,22 +31,19 @@ export class VmdHomeView extends LitElement {
     ];
 
     @property({type: Array, attribute: false}) recuperationCommunesEnCours: boolean = false;
-    @property({type: Array, attribute: false}) communesDisponibles: Commune[]|undefined = undefined;
     @property({type: Array, attribute: false}) statsLieu: StatsLieu|undefined = undefined;
 
-    private departementsDisponibles: Departement[]|undefined = [];
-    private communeSelectionee: Commune|undefined = undefined;
-    private departementSelectione: Departement|undefined = undefined;
+    private async onSearch (event: CustomEvent<SearchRequest>) {
+      if (SearchRequest.isByDepartement(event.detail)) {
+        const departement = event.detail.departement
+        Router.navigateToRendezVousAvecDepartement(departement.code_departement, libelleUrlPathDuDepartement(departement))
+      } else {
+        const commune = event.detail.commune
+        const departements = await State.current.departementsDisponibles()
+        const departement = departements.find(({ code_departement }) => code_departement === commune.codeDepartement)
 
-    rechercherRdv() {
-        if(this.departementSelectione) {
-            Router.navigateToRendezVousAvecDepartement(this.departementSelectione.code_departement, libelleUrlPathDuDepartement(this.departementSelectione));
-            return;
-        }
-
-        const departement = this.departementsDisponibles?this.departementsDisponibles.find(dpt => dpt.code_departement === this.communeSelectionee!.codeDepartement):undefined;
         if(!departement) {
-            console.error(`Can't find departement matching code ${this.communeSelectionee!.codeDepartement}`)
+            console.error(`Can't find departement matching code ${commune.codeDepartement}`)
             return;
         }
 
@@ -53,19 +51,11 @@ export class VmdHomeView extends LitElement {
             'distance',
             departement.code_departement,
             libelleUrlPathDuDepartement(departement),
-            this.communeSelectionee!.code, this.communeSelectionee!.codePostal,
-            libelleUrlPathDeCommune(this.communeSelectionee!)
+            commune.code,
+            commune.codePostal,
+            libelleUrlPathDeCommune(commune!)
         )
-    }
-
-    communeSelected(commune: Commune) {
-        this.communeSelectionee = commune;
-        this.rechercherRdv();
-    }
-
-    departementSelected(departement: Departement) {
-        this.departementSelectione = departement;
-        this.rechercherRdv();
+      }
     }
 
     render() {
@@ -82,8 +72,7 @@ export class VmdHomeView extends LitElement {
                         </label>
                         <div class="col">
                           <vmd-search
-                            @on-commune-selected="${(event: CustomEvent<CommuneSelected>) => this.communeSelected(event.detail.commune)}"
-                            @on-departement-selected="${(event: CustomEvent<DepartementSelected>) => this.departementSelected(event.detail.departement)}"
+                            @on-search="${this.onSearch.bind(this)}"
                           />
                         </div>
                     </div>
@@ -184,17 +173,6 @@ export class VmdHomeView extends LitElement {
 
     async connectedCallback() {
         super.connectedCallback();
-
-        const [ departementsDisponibles, statsLieu ] = await Promise.all([
-            State.current.departementsDisponibles(),
-            State.current.statsLieux()
-        ])
-        this.departementsDisponibles = departementsDisponibles;
-        this.statsLieu = statsLieu;
-    }
-
-    disconnectedCallback() {
-        super.disconnectedCallback();
-        // console.log("disconnected callback")
+        this.statsLieu = await State.current.statsLieux()
     }
 }
