@@ -67,8 +67,8 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
                 @submit="${this.handleSubmit}">
             <input type="search" class="autocomplete-input"
                    required
-                   @focusin="${() => { this.inputHasFocus = true; window.scroll({ top: this.offsetTop - 32, behavior: 'smooth' }); }}"
-                   @focusout="${() => { this.onInputBlur() }}"
+                   @focusin="${this.onFocusIn}"
+                   @focusout="${this.onInputBlur}"
                    @keydown="${this.handleKeydown}"
                    @keyup="${this.valueChanged}"
                    .value="${this.filter}"
@@ -81,7 +81,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
               <div class="spinner-border text-primary" role="status">
               </div>
             `:html``}
-            ${this.showDropdown?html`<ul class="autocomplete-results">${this.renderListItems()}</ul>`:html``}
+            ${this.showDropdown?html`<ul role="listbox" class="autocomplete-results">${this.renderListItems()}</ul>`:html``}
           </form>
         `;
     }
@@ -94,6 +94,15 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
             return this.renderCommuneItem(suggestion, index)
           }
         })
+    }
+
+    private onFocusIn (e: Event) {
+      this.inputHasFocus = true
+      window.scroll({ top: this.offsetTop - 32, behavior: 'smooth' })
+      const input = e.target as HTMLInputElement
+      if (this._currentValue && input) {
+        input.select()
+      }
     }
 
     get recupérationEnCours () {
@@ -134,6 +143,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
     }
 
     private departementSelected(dpt: Departement) {
+        this.suggestions = []
         this.filter = `${dpt.code_departement} - ${dpt.nom_departement}`;
         this.dispatchEvent(new CustomEvent<DepartementSelected>('on-departement-selected', {
             detail: {
@@ -188,6 +198,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
         }
     }
     private communeSelected(commune: Commune) {
+        this.suggestions = []
         this.filter = `${commune.codePostal} - ${commune.nom}`;
         this.dispatchEvent(new CustomEvent<CommuneSelected>('on-commune-selected', {
             detail: {
@@ -208,7 +219,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
       return html`<li
         class="autocomplete-result"
         role="option"
-        aria-selected="${index === 0 && this.departementsAffiches.length === 0}"
+        aria-selected="${index === 0}"
         @click="${() => this.communeSelected(commune)}"
         >
           <span class="zipcode">${commune.codePostal}</span> - ${commune.nom}
