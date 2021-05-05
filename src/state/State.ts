@@ -1,4 +1,3 @@
-import {ISODateString, WeekDay} from "../utils/Dates";
 import {Strings} from "../utils/Strings";
 
 export type CodeTrancheAge = 'plus75ans';
@@ -68,6 +67,8 @@ export const TYPES_LIEUX: {[k in TypeLieu]: string} = {
     "drugstore": 'Pharmacie',
     "general-practitioner": 'Médecin généraliste',
 };
+export type ISODateString = string
+export type WeekDay = "lundi"|"mardi"|"mercredi"|"jeudi"|"vendredi"|"samedi"|"dimanche"
 export type BusinessHours = Record<WeekDay,string>;
 export type Lieu = {
     appointment_count: number;
