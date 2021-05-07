@@ -17,6 +17,9 @@ type RouteDeclaration = {
     pageTitleProvider?: TitleProvider;
 };
 
+// @ts-ignore
+const BASE_URL = '/'
+
 class Routing {
     public static readonly INSTANCE = new Routing();
 
@@ -29,7 +32,7 @@ class Routing {
     private currentPath: string|undefined = undefined;
 
     public get basePath() {
-        return import.meta.env.BASE_URL;
+        return BASE_URL
     }
 
     installRoutes(callback?: ViewChangedCallback): ViewChangedCallbackCleaner|undefined {

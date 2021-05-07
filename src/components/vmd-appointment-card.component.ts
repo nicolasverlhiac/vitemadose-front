@@ -84,7 +84,7 @@ export class VmdAppointmentCardComponent extends LitElement {
                     cardLink: (content) =>
                         html`<a href="#" @click="${(e: Event) => { specificCardConfig.onclick(); e.preventDefault(); } }">${content}</a>`,
                     actions: html`
-                      <a href="#" @click="${(e: Event) => e.preventDefault()}" 
+                      <a href="#" @click="${(e: Event) => e.preventDefault()}"
                          class="btn btn-lg ${classMap({ 'btn-primary': specificCardConfig.typeBouton==='btn-primary', 'btn-info': specificCardConfig.typeBouton==='btn-info' })}">
                         ${specificCardConfig.libelleBouton}
                       </a>
