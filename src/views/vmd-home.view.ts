@@ -1,8 +1,6 @@
 import {css, customElement, html, LitElement, property } from 'lit-element';
 import {Router} from "../routing/Router";
 import {
-    Commune,
-    Departement,
     libelleUrlPathDeCommune,
     libelleUrlPathDuDepartement,
     PLATEFORMES,
@@ -10,10 +8,6 @@ import {
     State,
     StatsLieu,
 } from "../state/State";
-import {
-    CommuneSelected,
-    DepartementSelected
-} from "../components/vmd-commune-or-departement-selector.component";
 import {CSS_Global, CSS_Home} from "../styles/ConstructibleStyleSheets";
 
 @customElement('vmd-home')

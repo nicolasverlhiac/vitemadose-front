@@ -8,8 +8,6 @@ import {
     SearchRequest,
     CodeDepartement,
     CodeTriCentre,
-    Commune,
-    Departement,
     libelleUrlPathDeCommune,
     libelleUrlPathDuDepartement,
     Lieu, LieuAffichableAvecDistance, LieuxAvecDistanceParDepartement,
@@ -21,8 +19,6 @@ import {Dates} from "../utils/Dates";
 import {Strings} from "../utils/Strings";
 import {
     ValueStrCustomEvent,
-    AutocompleteTriggered,
-    CommuneSelected, DepartementSelected, VmdCommuneOrDepartmentSelectorComponent
 } from "../components/vmd-commune-or-departement-selector.component";
 import {DEPARTEMENTS_LIMITROPHES} from "../utils/Departements";
 import {TemplateResult} from "lit-html";
@@ -328,7 +324,7 @@ export class VmdRdvParCommuneView extends AbstractVmdRdvView {
       }
     }
 
-    protected codeDepartementAdditionnels(codeDepartementSelectionne: CodeDepartement) {
+    codeDepartementAdditionnels(codeDepartementSelectionne: CodeDepartement) {
         return DEPARTEMENTS_LIMITROPHES[codeDepartementSelectionne];
     }
 
@@ -422,6 +418,10 @@ export class VmdRdvParDepartementView extends AbstractVmdRdvView {
             this.refreshLieux()
           }
         }
+    }
+
+    codeDepartementAdditionnels () {
+      return []
     }
 
 
